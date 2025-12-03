@@ -753,6 +753,27 @@ func setRoutingOptions(options *option.Options, opt *HiddifyOptions) {
 
 func patchHiddifyWarpFromConfig(out option.Outbound, opt HiddifyOptions) option.Outbound {
 	if opt.Warp.EnableWarp && opt.Warp.Mode == "proxy_over_warp" {
+		// Handle UAP protocol (sibling of VLESS) through JSON map
+		if out.Type == "uap" {
+			jsonData, err := out.MarshalJSON()
+			if err == nil {
+				var obj map[string]interface{}
+				if err := json.Unmarshal(jsonData, &obj); err == nil {
+					// UAP uses the same structure as VLESS, check detour field
+					if detour, ok := obj["detour"].(string); !ok || detour == "" {
+						obj["detour"] = "Hiddify Warp ✅"
+						modifiedJson, err := json.Marshal(obj)
+						if err == nil {
+							var uapOutbound option.Outbound
+							if err := uapOutbound.UnmarshalJSON(modifiedJson); err == nil {
+								return uapOutbound
+							}
+						}
+					}
+				}
+			}
+		}
+		
 		if out.DirectOptions.Detour == "" {
 			out.DirectOptions.Detour = "Hiddify Warp ✅"
 		}

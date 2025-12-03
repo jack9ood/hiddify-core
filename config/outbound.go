@@ -36,6 +36,48 @@ func patchOutboundTLSTricks(base option.Outbound, configOpt HiddifyOptions, obj 
 
 	var tls *option.OutboundTLSOptions
 	var transport *option.V2RayTransportOptions
+	
+	// Handle UAP protocol through JSON map (UAP is a sibling protocol of VLESS)
+	if base.Type == "uap" {
+		// Check if UAP uses Reality (Reality should skip TLS tricks)
+		if isOutboundRealityFromMap(obj) {
+			return obj
+		}
+		
+		if uapTls, ok := obj["tls"].(map[string]interface{}); ok {
+			if enabled, ok := uapTls["enabled"].(bool); ok && enabled {
+				// UAP has TLS enabled, process it
+				if uapTransport, ok := obj["transport"].(map[string]interface{}); ok {
+					transportType, _ := uapTransport["type"].(string)
+					if transportType == C.V2RayTransportTypeWebsocket || transportType == C.V2RayTransportTypeGRPC || transportType == C.V2RayTransportTypeHTTPUpgrade {
+						// Process UAP TLS tricks
+						obj = patchOutboundFragment(base, configOpt, obj)
+						tlsTricks := &option.TLSTricksOptions{}
+						if existingTricks, ok := uapTls["tls_tricks"].(map[string]interface{}); ok {
+							if mixedCase, ok := existingTricks["mixed_case_sni"].(bool); ok {
+								tlsTricks.MixedCaseSNI = mixedCase
+							}
+						}
+						tlsTricks.MixedCaseSNI = tlsTricks.MixedCaseSNI || configOpt.TLSTricks.MixedSNICase
+
+						if configOpt.TLSTricks.EnablePadding {
+							tlsTricks.PaddingMode = "random"
+							tlsTricks.PaddingSize = configOpt.TLSTricks.PaddingSize
+							uapTls["utls"] = map[string]interface{}{
+								"enabled":     true,
+								"fingerprint": "custom",
+							}
+						}
+
+						uapTls["tls_tricks"] = tlsTricks
+						obj["tls"] = uapTls
+					}
+				}
+			}
+		}
+		return obj
+	}
+	
 	if base.VLESSOptions.OutboundTLSOptionsContainer.TLS != nil {
 		tls = base.VLESSOptions.OutboundTLSOptionsContainer.TLS
 		transport = base.VLESSOptions.Transport
@@ -112,18 +154,33 @@ func patchOutboundFragment(base option.Outbound, configOpt HiddifyOptions, obj o
 }
 
 func isOutboundReality(base option.Outbound) bool {
-	// this function checks reality status ONLY FOR VLESS.
+	// this function checks reality status FOR VLESS and UAP.
 	// Some other protocols can also use reality, but it's discouraged as stated in the reality document
-	if base.Type != C.TypeVLESS {
-		return false
+	if base.Type == C.TypeVLESS {
+		if base.VLESSOptions.OutboundTLSOptionsContainer.TLS == nil {
+			return false
+		}
+		if base.VLESSOptions.OutboundTLSOptionsContainer.TLS.Reality == nil {
+			return false
+		}
+		return base.VLESSOptions.OutboundTLSOptionsContainer.TLS.Reality.Enabled
 	}
-	if base.VLESSOptions.OutboundTLSOptionsContainer.TLS == nil {
-		return false
+	// UAP is a sibling protocol of VLESS
+	// Note: UAP Reality check is done through JSON map in patchOutboundTLSTricks
+	// since UAPOptions might not be available in the struct yet
+	return false
+}
+
+// isOutboundRealityFromMap checks Reality status from JSON map (for UAP protocol)
+func isOutboundRealityFromMap(obj outboundMap) bool {
+	if tls, ok := obj["tls"].(map[string]interface{}); ok {
+		if reality, ok := tls["reality"].(map[string]interface{}); ok {
+			if enabled, ok := reality["enabled"].(bool); ok {
+				return enabled
+			}
+		}
 	}
-	if base.VLESSOptions.OutboundTLSOptionsContainer.TLS.Reality == nil {
-		return false
-	}
-	return base.VLESSOptions.OutboundTLSOptionsContainer.TLS.Reality.Enabled
+	return false
 }
 
 func patchOutbound(base option.Outbound, configOpt HiddifyOptions, staticIpsDns map[string][]string) (*option.Outbound, string, error) {
@@ -159,6 +216,9 @@ func patchOutbound(base option.Outbound, configOpt HiddifyOptions, staticIpsDns 
 
 	switch base.Type {
 	case C.TypeVMess, C.TypeVLESS, C.TypeTrojan, C.TypeShadowsocks:
+		obj = patchOutboundMux(base, configOpt, obj)
+	case "uap":
+		// UAP is a sibling protocol of VLESS, support Mux
 		obj = patchOutboundMux(base, configOpt, obj)
 	}
 

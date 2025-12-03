@@ -1,0 +1,31 @@
+{
+  "outbounds": [
+    {
+      "type": "uap",
+      "tag": "uap-reality-server",
+      "server": "your-server.com",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "flow": "",
+      "tls": {
+        "enabled": true,
+        "server_name": "www.microsoft.com",
+        "insecure": false,
+        "reality": {
+          "enabled": true,
+          "handshake": {
+            "server": "www.microsoft.com",
+            "server_port": 443
+          },
+          "private_key": "your-private-key-here",
+          "short_id": ["your-short-id"],
+          "max_time_difference": "1m"
+        }
+      },
+      "transport": {
+        "type": "tcp"
+      }
+    }
+  ]
+}
+

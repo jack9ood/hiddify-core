@@ -10,3 +10,9 @@ cert
 node_modules
 *.db
 *.json
+# 但保留 test 目录中的示例配置文件
+!test/*.json
+# 忽略 test 目录中脚本生成的临时输出文件
+test/*_output.json
+test/*_runtime.json
+test/my_*.json

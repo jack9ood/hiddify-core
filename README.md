@@ -19,6 +19,24 @@ docker-compose up
 ## WRT
 ...
 
+## Testing
+
+UAP protocol testing scripts are available in the `test/` directory. See [test/README.md](./test/README.md) for details.
+
+Quick start:
+```bash
+# From project root
+./test/test_uap.sh                    # Basic UAP test
+./test/test_uap_reality.sh            # Reality config validation
+./test/test_uap_connection.sh          # Connection test
+
+# Or from test directory
+cd test
+./test_uap.sh
+./test_uap_reality.sh
+./test_uap_connection.sh
+```
+
 ## Extension
 
 An extension is something that can be added to hiddify application by a third party. It will add capability to modify configs, do some extra action, show and receive data from users.

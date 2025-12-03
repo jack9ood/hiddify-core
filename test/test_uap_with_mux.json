@@ -1,0 +1,22 @@
+{
+  "outbounds": [
+    {
+      "type": "uap",
+      "tag": "uap-mux-test",
+      "server": "example.com",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "flow": "",
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com",
+        "insecure": false
+      },
+      "transport": {
+        "type": "grpc",
+        "service_name": "test"
+      }
+    }
+  ]
+}
+
